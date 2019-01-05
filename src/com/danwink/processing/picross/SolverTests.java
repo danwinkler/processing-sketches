@@ -71,4 +71,23 @@ public class SolverTests
 		RowPlay play = (new Solver.FillImpossibleSpansRule()).applyReversible( row, hints );
 		assertTrue( play != null );
 	}
+	
+	@Test
+	public void surroundCompletedSectionsTest()
+	{
+		BoardState[] row = new BoardState[] {
+			BoardState.ON,
+			BoardState.ON,
+			BoardState.OFF,
+			BoardState.ON,
+			BoardState.UNKNOWN,
+			BoardState.UNKNOWN,
+			BoardState.UNKNOWN,
+		};
+		
+		int[] hints = new int[] { 2, 3 };
+		
+		RowPlay play = (new Solver.SurroundCompletedSectionsRule()).applyReversible( row, hints );
+		assertTrue( play != null );
+	}
 }

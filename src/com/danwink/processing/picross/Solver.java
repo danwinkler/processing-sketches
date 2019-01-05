@@ -80,6 +80,12 @@ public class Solver
 		return max;
 	}
 	
+	public static int[] getSpanHintOwnership( BoardState[] row, int[] hints )
+	{
+		// TODO
+		return null;
+	}
+	
 	public static class SurroundCompletedSectionsRule implements Rule, RowRule, ReversibleRowRule
 	{
 		public RowPlay applyReversible( BoardState[] row, int[] hints )
@@ -99,6 +105,16 @@ public class Solver
 				{
 					if( onSpan )
 					{
+						onSpan = false;
+						onHint++;
+						spanLength = 0;
+					}
+				}
+				
+				if( row[i] == BoardState.UNKNOWN )
+				{
+					if( onSpan )
+					{
 						if( spanLength == hints[onHint] && max(hints) == spanLength )
 						{
 							if( row[i-spanLength] == BoardState.UNKNOWN )
@@ -108,17 +124,13 @@ public class Solver
 							
 							if( i+1 < row.length && row[i+1] == BoardState.UNKNOWN )
 							{
-								return new RowPlay( i+1, BoardState.OFF );
+								return new RowPlay( i, BoardState.OFF );
 							}
 						}
 						else
 						{
 							return null;
 						}
-						
-						onSpan = false;
-						onHint++;
-						spanLength = 0;
 					}
 				}
 			}
@@ -127,7 +139,7 @@ public class Solver
 		
 		public RowPlay apply( BoardState[] row, int[] hints )
 		{
-			return null;
+			return applyBothWays( this, row, hints );
 		}
 
 		public Play play( Picross cross )

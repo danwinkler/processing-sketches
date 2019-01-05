@@ -42,7 +42,7 @@ public class AutoSolveSketch extends PApplet
 	
 	public void draw()
 	{
-		if( frameCount % 2 == 0 )
+		if( frameCount % 1 == 0 )
 		{
 			solver.solve( picross );
 		}
