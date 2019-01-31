@@ -10,7 +10,8 @@ import processing.core.*;
 
 public class AutoSolveSketch extends PApplet
 {
-	public static final int WIDTH = 1600, HEIGHT = 1200;
+	public static final int WIDTH = 1600, HEIGHT = 900;
+	float boardScale = .4f;
 	
 	Picross picross;
 	Solver solver;
@@ -28,7 +29,7 @@ public class AutoSolveSketch extends PApplet
 		BufferedImage img = null;
 		try
 		{
-			img = ImageIO.read( new File( "assets/picross/test1.png" ) );
+			img = ImageIO.read( new File( "assets/picross/bird.png" ) );
 		}
 		catch( IOException e )
 		{
@@ -37,18 +38,48 @@ public class AutoSolveSketch extends PApplet
 		}
 		Board board = new Board( img );
 		
-		picross.newGame( board ); 
+		/*
+		board = new Board( 15, 15 );
+		
+		for( int x = 0; x < board.width; x++ )
+		{
+			for( int y = 0; y < board.height; y++ )
+			{
+				board.board[x][y] = Math.random() > .5f ? BoardState.OFF : BoardState.ON;
+			}
+		}
+		board.generateHints();
+		*/
+		
+		picross.newGame( board );
+		
+		new Thread(()->{
+			while( true )
+			{
+				solver.solve( picross );
+				try
+				{
+					Thread.sleep( 10 );
+				}
+				catch( InterruptedException e )
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}).start();
 	}
 	
 	public void draw()
 	{
-		if( frameCount % 1 == 0 )
-		{
-			solver.solve( picross );
-		}
-		
+//		if( frameCount % 2 == 1 )
+//		{
+//			solver.solve( picross );
+//		}
+//		
 		int scale = 30;
 		pushMatrix();
+		scale( boardScale );
 		drawBoard( picross.image, scale, picross.image );
 		translate( (picross.width + picross.image.maxHintSizeX()) * scale, 0 );
 		drawBoard( picross.game, scale, picross.image );

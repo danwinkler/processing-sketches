@@ -1,7 +1,9 @@
 package com.danwink.processing.picross;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -10,11 +12,12 @@ import com.danwink.processing.Vector2I;
 public class Solver
 {
 	Rule[] rules = new Rule[] {
-		new FullRowRule(),
-		new WallCounterRule(),
-		new FillCompletedRowsRule(),
-		new FillImpossibleSpansRule(),
-		new SurroundCompletedSectionsRule()
+//		new FullRowRule(),
+//		new WallCounterRule(),
+//		new FillCompletedRowsRule(),
+//		new FillImpossibleSpansRule(),
+//		new SurroundCompletedSectionsRule(),
+		new RowEquationRule(),
 	};
 	
 	public void solve( Picross cross )
@@ -54,6 +57,8 @@ public class Solver
 	public static interface RowRule
 	{
 		public RowPlay apply( BoardState[] row, int[] hints );
+		public int getLast();
+		public void setLast( int last );
 	}
 	
 	public static boolean isUnique( int num, int[] nums )
@@ -80,10 +85,204 @@ public class Solver
 		return max;
 	}
 	
+	public static int sum( int[] nums )
+	{
+		int sum = 0;
+		for( int i = 0; i < nums.length; i++ )
+		{
+			sum += nums[i];
+		}
+		return sum;
+	}
+	
 	public static int[] getSpanHintOwnership( BoardState[] row, int[] hints )
 	{
 		// TODO
 		return null;
+	}
+	
+	public static class RowEquationRule implements Rule, RowRule
+	{
+		int last = 0;
+		
+		public static class Term
+		{
+			public boolean solid;
+			public int min;
+			public int max;
+			
+			public Term( boolean solid, int min, int max )
+			{
+				this.solid = solid;
+				this.min = min;
+				this.max = max;
+			}
+		}
+		
+		public static class ValueBox
+		{
+			public int value;
+			public boolean solid;
+			
+			public ValueBox( int value, boolean solid )
+			{
+				this.value = value;
+				this.solid = solid;
+			}
+		}	
+		
+		public int determineMaxValue( ArrayList<Term> terms, int currentLocation, int i, int rowLength )
+		{
+			int minRemaining = terms.stream().skip( i+1 ).mapToInt( t -> t.min ).sum();
+			
+			//System.out.println( String.format( "%d, %d", currentLocation, minRemaining ) );
+			
+			return rowLength - currentLocation - minRemaining;
+		}
+		
+		public boolean recursiveBuildValueBoxSolution( ArrayList<Term> terms, ArrayList<LinkedList<ValueBox>> solutions, LinkedList<ValueBox> current, BoardState[] row, int i )
+		{
+			if( solutions.size() > 2000000 ) 
+			{
+				return false; // If we end up with too many solutions just give up completely
+			}
+			
+			if( i >= terms.size() )
+			{
+				solutions.add( (LinkedList<ValueBox>)current.clone() );
+			}
+			else
+			{
+				Term t = terms.get( i );
+				
+				int currentLocation = current.stream().mapToInt( v -> v.value ).sum();
+				int maxValue = Math.min( t.max, determineMaxValue( terms, currentLocation, i, row.length ) );
+				
+				lengthSearch: for( int v = t.min; v <= maxValue; v++ )
+				{
+					for( int j = currentLocation; j < currentLocation + v; j++ )
+					{
+						if( row[j] != BoardState.UNKNOWN && row[j] != (t.solid ? BoardState.ON : BoardState.OFF) )
+						{
+							continue lengthSearch;
+						}
+					}
+					
+					current.addLast( new ValueBox( v, t.solid ) );
+					boolean success = recursiveBuildValueBoxSolution( terms, solutions, current, row, i+1 );
+					if( !success ) return false; 
+					current.removeLast();
+				}
+			}
+			return true;
+		}
+		
+		public RowPlay apply( BoardState[] row, int[] hints )
+		{
+			// Build list of terms
+			ArrayList<Term> terms = new ArrayList<Term>();
+			int maxEmpty = row.length - sum( hints );
+			
+			terms.add( new Term( false, 0, maxEmpty ) );
+			for( int i = 0; i < hints.length; i++ )
+			{
+				int hint = hints[i];
+				terms.add( new Term( true, hint, hint ) );
+				if( i < hints.length-1 ) terms.add( new Term( false, 1, maxEmpty ) );
+			}
+			terms.add( new Term( false, 0, maxEmpty ) );
+			
+			ArrayList<LinkedList<ValueBox>> solutionPermutations = new ArrayList<>();
+			
+			boolean success = recursiveBuildValueBoxSolution( terms, solutionPermutations, new LinkedList<ValueBox>(), row, 0 );
+			
+			if( !success ) return null;
+			
+			if( solutionPermutations.size() > 500000 )
+				System.out.println( "solutions: " + solutionPermutations.size() );
+			
+			List<LinkedList<ValueBox>> potentialSolutions = solutionPermutations
+				.parallelStream()
+				.filter( 
+					s -> s.stream().mapToInt( v -> v.value ).sum() == row.length 
+				).filter( 
+					s -> {
+						int i = 0;
+						for( ValueBox b : s )
+						{
+							for( int j = 0; j < b.value; j++ )
+							{
+								if( row[i] != BoardState.UNKNOWN && row[i] != (b.solid ? BoardState.ON : BoardState.OFF))
+								{
+									return false;
+								}
+								i++;
+							}
+						}
+						
+						return true;
+					}
+				).collect(Collectors.toList());
+			
+			int[] solidOccurances = new int[row.length];
+			
+			final boolean debug = false;
+			
+			for( LinkedList<ValueBox> solution : potentialSolutions )
+			{
+				int i = 0;
+				for( ValueBox b : solution )
+				{
+					for( int j = 0; j < b.value; j++ )
+					{
+						if( b.solid ) solidOccurances[i]++;
+						if( debug ) System.out.print( b.solid ? "O" : "X" );
+						
+						i++;
+					}
+					if( debug ) System.out.print( "\n" );
+				}
+			}
+			
+//			System.out.println( Arrays.stream(row)
+//			        .map((BoardState bs) -> bs.shortString()).reduce("", String::concat) );
+//			
+//			System.out.println( Arrays.stream(hints)
+//			        .mapToObj(String::valueOf)
+//			        .collect(Collectors.joining(" - ")) );
+//			
+			for( int i = 0; i < solidOccurances.length; i++ )
+			{
+				if( solidOccurances[i] == potentialSolutions.size() && row[i] == BoardState.UNKNOWN )
+				{
+					return new RowPlay( i, BoardState.ON );
+				}
+				
+				if( solidOccurances[i] == 0 && row[i] == BoardState.UNKNOWN )
+				{
+					return new RowPlay( i, BoardState.OFF );
+				}
+			}
+			
+			return null;
+		}
+
+		public Play play( Picross cross )
+		{
+			return applyRowRule( cross, this );
+		}
+
+		@Override
+		public int getLast()
+		{
+			return last;
+		}
+
+		@Override
+		public void setLast( int last )
+		{
+			this.last = last;
+		}
 	}
 	
 	public static class SurroundCompletedSectionsRule implements Rule, RowRule, ReversibleRowRule
@@ -146,6 +345,19 @@ public class Solver
 		{
 			return applyRowRule( cross, this );
 		}
+
+		@Override
+		public int getLast()
+		{
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public void setLast( int last )
+		{
+			
+		}
 	}
 	
 	public static class FillImpossibleSpansRule implements Rule, RowRule, ReversibleRowRule
@@ -203,6 +415,20 @@ public class Solver
 		{
 			return applyRowRule( cross, this );
 		}
+
+		@Override
+		public int getLast()
+		{
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public void setLast( int last )
+		{
+			// TODO Auto-generated method stub
+			
+		}
 	}
 	
 	public static class FillCompletedRowsRule implements Rule, RowRule
@@ -247,6 +473,20 @@ public class Solver
 		public Play play( Picross cross )
 		{
 			return applyRowRule( cross, this );
+		}
+
+		@Override
+		public int getLast()
+		{
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public void setLast( int last )
+		{
+			// TODO Auto-generated method stub
+			
 		}
 	}
 	
@@ -334,6 +574,20 @@ public class Solver
 			
 			return play;
 		}
+
+		@Override
+		public int getLast()
+		{
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public void setLast( int last )
+		{
+			// TODO Auto-generated method stub
+			
+		}
 	}
 	
 	public static String joinObjArr( Object[] arr )
@@ -407,6 +661,20 @@ public class Solver
 		public Play play( Picross cross )
 		{
 			return applyRowRule( cross, this );
+		}
+
+		@Override
+		public int getLast()
+		{
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public void setLast( int last )
+		{
+			// TODO Auto-generated method stub
+			
 		}		
 	}
 	
@@ -438,6 +706,12 @@ public class Solver
 	
 	public static RowPlay applyWithExceptionMessage( RowRule rule, BoardState[] row, int[] hints )
 	{
+		// Optimization: If row is already complete, return null
+		if( Arrays.stream( row ).filter( bs -> bs == BoardState.UNKNOWN ).count() == 0 )
+		{
+			return null;
+		}
+		
 		try
 		{
 			return rule.apply( row, hints );
@@ -459,6 +733,49 @@ public class Solver
 		BoardState[] buffer;
 		RowPlay play;
 		
+		int offset = rule.getLast();
+		
+		for( int _i = 0; _i < cross.height + cross.width; _i++ )
+		{
+			int i = (_i + offset) % (cross.height + cross.width);
+			
+			if( i < cross.height )
+			{
+				buffer = new BoardState[cross.width];
+				int y = i;
+				for( int x = 0; x < cross.width; x++ )
+				{
+					buffer[x] = cross.game.get( x, y );
+				}
+				
+				play = applyWithExceptionMessage( rule, buffer, cross.image.yHints[y] );
+				if( play != null ) 
+				{
+					rule.setLast( i );
+					return new Play( new Vector2I( play.location, y ), play.state );
+				}
+			}
+			else
+			{
+				buffer = new BoardState[cross.height];
+				int x = i - cross.height;
+				for( int y = 0; y < cross.height; y++ )
+				{
+					buffer[y] = cross.game.get( x, y );
+				}
+				
+				play = applyWithExceptionMessage( rule, buffer, cross.image.xHints[x] );
+				if( play != null ) 
+				{
+					rule.setLast( i );
+					return new Play( new Vector2I( x, play.location ), play.state );
+				}
+			}
+		}
+		
+		rule.setLast( 0 );
+		
+		/*
 		buffer = new BoardState[cross.height];
 		for( int x = 0; x < cross.width; x++ )
 		{
@@ -488,6 +805,7 @@ public class Solver
 				return new Play( new Vector2I( play.location, y ), play.state );
 			}
 		}
+		*/
 		
 		return null;
 	}

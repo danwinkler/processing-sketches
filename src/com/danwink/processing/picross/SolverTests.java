@@ -90,4 +90,23 @@ public class SolverTests
 		RowPlay play = (new Solver.SurroundCompletedSectionsRule()).applyReversible( row, hints );
 		assertTrue( play != null );
 	}
+	
+	@Test
+	public void rowEquationTest()
+	{
+		BoardState[] row = new BoardState[] {
+			BoardState.UNKNOWN,
+			BoardState.UNKNOWN,
+			BoardState.UNKNOWN,
+			BoardState.UNKNOWN,
+			BoardState.UNKNOWN,
+			BoardState.UNKNOWN,
+			BoardState.UNKNOWN,
+		};
+		
+		int[] hints = new int[] { 8, 9 };
+		
+		RowPlay play = (new Solver.RowEquationRule()).apply( row, hints );
+		assertTrue( play != null );
+	}
 }

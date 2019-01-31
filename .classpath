@@ -3,6 +3,11 @@
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="lib" path="processing/library/core.jar"/>
+	<classpathentry kind="lib" path="processing/library/gluegen-rt.jar"/>
+	<classpathentry kind="lib" path="processing/library/jogl-all.jar"/>
+	<classpathentry kind="lib" path="processing/3rdparty/peasy-math.jar"/>
+	<classpathentry kind="lib" path="processing/3rdparty/peasycam.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/5"/>
+	<classpathentry kind="src" path="/ConvolutionSurfaces"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
