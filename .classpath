@@ -7,6 +7,20 @@
 	<classpathentry kind="lib" path="processing/library/jogl-all.jar"/>
 	<classpathentry kind="lib" path="processing/3rdparty/peasy-math.jar"/>
 	<classpathentry kind="lib" path="processing/3rdparty/peasycam.jar"/>
+	<classpathentry kind="lib" path="processing/library/gluegen-rt-natives-windows-amd64.jar"/>
+	<classpathentry kind="lib" path="processing/library/jogl-all-natives-windows-amd64.jar"/>
+	<classpathentry kind="lib" path="processing/library/gluegen-rt-natives-linux-aarch64.jar"/>
+	<classpathentry kind="lib" path="processing/library/gluegen-rt-natives-linux-amd64.jar"/>
+	<classpathentry kind="lib" path="processing/library/gluegen-rt-natives-linux-armv6hf.jar"/>
+	<classpathentry kind="lib" path="processing/library/gluegen-rt-natives-linux-i586.jar"/>
+	<classpathentry kind="lib" path="processing/library/gluegen-rt-natives-macosx-universal.jar"/>
+	<classpathentry kind="lib" path="processing/library/gluegen-rt-natives-windows-i586.jar"/>
+	<classpathentry kind="lib" path="processing/library/jogl-all-natives-linux-aarch64.jar"/>
+	<classpathentry kind="lib" path="processing/library/jogl-all-natives-linux-amd64.jar"/>
+	<classpathentry kind="lib" path="processing/library/jogl-all-natives-linux-armv6hf.jar"/>
+	<classpathentry kind="lib" path="processing/library/jogl-all-natives-linux-i586.jar"/>
+	<classpathentry kind="lib" path="processing/library/jogl-all-natives-macosx-universal.jar"/>
+	<classpathentry kind="lib" path="processing/library/jogl-all-natives-windows-i586.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/5"/>
 	<classpathentry kind="src" path="/ConvolutionSurfaces"/>
 	<classpathentry kind="output" path="bin"/>
