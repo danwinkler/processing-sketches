@@ -1,6 +1,7 @@
 package com.danwink.processing.growthconvsurf;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Random;
 
@@ -48,7 +49,7 @@ public class Growth2D extends PApplet
 	{
 		noStroke();
 		fill( 200, 200, 100, 128 );
-		for( PheromonePoint p : sim.pheromonePoints )
+		for( AuxinSource p : sim.auxinSources )
 		{
 			ellipse( p.p.x, p.p.y, p.r * 2, p.r * 2 );
 		}
@@ -108,7 +109,7 @@ public class Growth2D extends PApplet
 	
 	public static class GrowthSim2D
 	{
-		ArrayList<PheromonePoint> pheromonePoints;
+		ArrayList<AuxinSource> auxinSources;
 		ArrayList<Segment> segments;
 		ArrayList<Segment> newSegments;
 		Random random = new Random();
@@ -117,8 +118,6 @@ public class Growth2D extends PApplet
 		float maxX = 200;
 		float minY = 0;
 		float maxY = 200;
-		float pheromoneMinRadius = 7;
-		float pheromoneMaxRadius = 7;
 		float segmentLength = 3;
 		float daVariance = .1f;
 		float daMax = .2f;
@@ -127,27 +126,16 @@ public class Growth2D extends PApplet
 		
 		public GrowthSim2D()
 		{
-			pheromonePoints = new ArrayList<>();
+			auxinSources = new ArrayList<>();
 			segments = new ArrayList<>();
 			newSegments = new ArrayList<>();
 		}
 		
 		public void init()
 		{
-			pheromonePoints.clear();
+			auxinSources.clear();
 			segments.clear();
 			newSegments.clear();
-			
-			int rootCount = random.nextInt( maxRoots - minRoots ) + minRoots;
-			
-			for( int i = 0; i < rootCount; i++ )
-			{
-				float rootAngle = random( random, 0, (float)(Math.PI * 2) );
-				Vector2f rp = new Vector2f( random( random, minX, maxX ), random( random, minY, maxY ) );
-				Vector2f rv = new Vector2f( (float)Math.cos( rootAngle ) * segmentLength, (float)Math.sin( rootAngle ) * segmentLength ); 
-				Segment root = new Segment( rp, rv );
-				segments.add( root );
-			}
 			
 			pheromoneSpawnLoop: 
 			while( true )
@@ -156,9 +144,9 @@ public class Growth2D extends PApplet
 				for( int i = 0; i < 100; i++ )
 				{
 					Vector2f p = new Vector2f( random( random, minX, maxX ), random( random, minX, maxX ) );
-					float r = random( random, pheromoneMinRadius, pheromoneMaxRadius );
+					float r = random( random, AuxinSource.minRadius, AuxinSource.maxRadius );
 					
-					for( PheromonePoint pp : pheromonePoints )
+					for( AuxinSource pp : auxinSources )
 					{
 						if( pp.p.distanceSquared( p ) < (r + pp.r) * (r + pp.r) )
 						{
@@ -166,11 +154,25 @@ public class Growth2D extends PApplet
 						}
 					}
 					
-					pheromonePoints.add( new PheromonePoint( p, r ) );
+					auxinSources.add( new AuxinSource( p, r ) );
 					continue pheromoneSpawnLoop;
 				}
 				break;
 			}
+			
+			int rootCount = random.nextInt( maxRoots - minRoots ) + minRoots;
+			for( int i = 0; i < rootCount; i++ )
+			{
+				float rootAngle = random( random, 0, (float)(Math.PI * 2) );
+				Vector2f rp = new Vector2f( random( random, minX, maxX ), random( random, minY, maxY ) );
+				//Vector2f rv = new Vector2f( (float)Math.cos( rootAngle ) * segmentLength, (float)Math.sin( rootAngle ) * segmentLength );
+				Vector2f rv = getDirToPoints( rp );
+				rv.mul( segmentLength );
+				Segment root = new Segment( rp, rv );
+				System.out.println( rv.length() );
+				segments.add( root );
+			}
+			
 		}
 		
 		public void update()
@@ -184,34 +186,69 @@ public class Growth2D extends PApplet
 			newSegments.clear();
 		}
 		
-		public Segment intersectingSegment( Segment segment )
+		public Vector2f getDirToPoints( Vector2f p )
+		{
+			Vector2f v = new Vector2f();
+			
+			Vector2f t = new Vector2f();
+			for( AuxinSource pp : auxinSources )
+			{
+				t.set( pp.p );
+				t.sub( p );
+				float mag = t.length();
+				t.mul( 1.f / mag );
+				t.mul( 1f / (mag*mag) );
+				
+				v.add( t );
+			}
+			
+			v.normalize();
+			
+			return v;
+		}
+		
+		public Tuple<Segment, Vector2f> intersectingSegment( Segment segment )
 		{
 			for( Segment other : segments )
 			{
 				Vector2f intersection = lineLineIntersection( segment.p, segment.p2, other.p, other.p2 );
 				if( other != segment && other != segment.parent && other.parent != segment.parent && intersection != null )
 				{
-					return other;
+					return new Tuple<Segment, Vector2f>( other, intersection );
 				}
 			}
 			return null;
 		}
 		
-		public void generateChild( Segment segment, float baseAngle )
+		public void generateChild( Segment segment, float baseAngle, boolean flipDa )
 		{
 			Vector2f childPoint = new Vector2f( segment.p2 );
 			
-			float childDa = bound(
-				segment.da + random( random, -daVariance, daVariance ),
-				-daMax,
-				daMax 
-			);
+			float childDa = 0;
+			
+			if( flipDa ) 
+			{
+				childDa = segment.da * -1;
+			} 
+			else 
+			{
+				childDa = bound(
+					segment.da + random( random, -daVariance, daVariance ),
+					-daMax,
+					daMax 
+				);
+			}
+			
 			float childAngle = baseAngle + childDa;
 			
 			Vector2f childVector = new Vector2f(
 				(float)Math.cos( childAngle ) * segmentLength,
 				(float)Math.sin( childAngle ) * segmentLength
 			);
+			
+			Vector2f pointDir = getDirToPoints( childPoint );
+			pointDir.mul( .2f );
+			childVector.add( pointDir );
 			
 			Segment child = new Segment( childPoint, childVector );
 			child.da = childDa;
@@ -221,12 +258,12 @@ public class Growth2D extends PApplet
 			segment.connected.add( child );
 			newSegments.add( child );
 			
-			Segment intersecting = intersectingSegment( child );
+			Tuple<Segment, Vector2f> intersecting = intersectingSegment( child );
 			if( intersecting != null )
 			{
-				child.connected.add( intersecting );
-				intersecting.connected.add( child );
-				child.v.set( intersecting.p );
+				child.connected.add( intersecting.x );
+				intersecting.x.connected.add( child );
+				child.v.set( intersecting.y );
 				child.v.sub( child.p );
 				child.p2.set( child.p ).add( child.v );
 				child.hit = true;
@@ -237,15 +274,18 @@ public class Growth2D extends PApplet
 		{
 			if( segment.canBranch() && inBounds( segment.p ) )
 			{
-				generateChild( segment, segment.angle() );
+				generateChild( segment, segment.angle(), false );
 				if( segment.parent != null )
 				{
-					for( PheromonePoint pp : pheromonePoints )
+					Iterator<AuxinSource> ppIt = auxinSources.iterator();
+					while( ppIt.hasNext() )
 					{
-						if( !pp.inPoint( segment.parent.p ) && pp.inPoint( segment.p ) )
+						AuxinSource pp = ppIt.next();
+						if( pp.canSplit( segment ) )
 						{
 							float angle = (float)Math.atan2( pp.p.y - segment.p.y, pp.p.x - segment.p.x );
-							generateChild( segment, angle );
+							generateChild( segment, angle, true );
+							ppIt.remove();
 							break;
 						}
 					}
@@ -293,12 +333,15 @@ public class Growth2D extends PApplet
 		}
 	}
 	
-	public static class PheromonePoint
+	public static class AuxinSource
 	{
+		public static final float minRadius = 7;
+		public static final float maxRadius = 12;
+		
 		Vector2f p;
 		float r;
 		
-		public PheromonePoint( Vector2f p, float r )
+		public AuxinSource( Vector2f p, float r )
 		{
 			this.p = p;
 			this.r = r;
@@ -308,5 +351,33 @@ public class Growth2D extends PApplet
 		{
 			return this.p.distanceSquared( p ) < r * r;
 		}
+		
+		public boolean canSplit( Segment segment )
+		{
+			return inPointCanSplit( segment );
+		}
+		
+		public boolean inPointCanSplit( Segment segment )
+		{
+			return !inPoint( segment.parent.p ) && inPoint( segment.p );
+		}
+		
+		public boolean ninetyDegreeCanSplit( Segment segment )
+		{
+			Vector2f dir = new Vector2f();
+			dir.set( p ).sub( segment.p );
+			return inPoint( segment.p ) && segment.v.dot( dir ) < 0;
+		}
 	}
+	
+	public static class Tuple<X, Y> 
+	{ 
+		public final X x; 
+		public final Y y; 
+		public Tuple( X x, Y y ) 
+		{ 
+			this.x = x; 
+			this.y = y; 
+		} 
+	} 
 }
