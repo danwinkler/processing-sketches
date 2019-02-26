@@ -27,6 +27,11 @@ public class App extends PApplet
 
 	ModelGenerator g;
 	PeasyCam cam;
+
+	// TODO: this might not be true at all
+	PShape nextShape = null; // I think we have to instantiate pshapes from the main thread, so instantiate them here
+	
+	float near = .1f, far = 100f;
 	
 	public void settings()
 	{
@@ -48,9 +53,39 @@ public class App extends PApplet
 	
 	public void draw()
 	{
+		if( nextShape == null ) nextShape = createShape();
+		
 		background(0);
 		
-		if( g.shape == null )
+		if( g.shape != null )
+		{
+			perspective(80, (float)width/(float)height, near, far);
+			shape( g.shape );
+		}
+		else if( g.field != null )
+		{
+			beginShape( POINTS );
+			stroke( 255 );
+			for( int z = 0; z < g.field.zSize; z++ )
+			{
+				for( int y = 0; y < g.field.ySize; y++ )
+				{
+					for( int x = 0; x < g.field.xSize; x++ )
+					{
+						if( g.field.field[z][y][x] > g.threshold )
+						{
+							vertex(
+								g.field.min.x + x * g.field.res,
+								g.field.min.y + y * g.field.res,
+								g.field.min.z + z * g.field.res 
+							);
+						}
+					}
+				}
+			}
+			endShape();
+		}
+		else
 		{
 			// Show progress bar
 			stroke(255);
@@ -60,18 +95,27 @@ public class App extends PApplet
 			fill(255);
 			rect(50, height/2 - 50, (width-100)*g.getProgress(), 100);
 		}
-		else
-		{
-			shape( g.shape );
-		}
 	}
 	
 	public void keyPressed()
 	{
-		if( key == 's' && g.shape != null )
+		if( g.shape == null ) return;
+		
+		switch( key )
 		{
+		case 's':
 			selectOutput( "Choose file", "saveFileSelected" );
+			break;
+		case '[':
+			g.threshold *= .8f;
+			new Thread(() -> g.polygonize()).start();
+			break;
+		case ']':
+			g.threshold *= 1.3f;
+			new Thread(() -> g.polygonize()).start();
+			break;
 		}
+		
 	}
 	
 	public void saveFileSelected(File file)
@@ -95,8 +139,12 @@ public class App extends PApplet
 	public class ModelGenerator implements Runnable
 	{
 		FieldGenerator fg;
+		Field field;
 		PShape shape;
 		ArrayList<Triangle> tris;
+		
+		float baseThreshold = .1f;
+		float threshold = .1f;
 		
 		public Vector getVectorFromJSONArray( JSONArray jsonVec )
 		{
@@ -111,6 +159,8 @@ public class App extends PApplet
 				
 				float margin = top.getFloat( "margins", 0 );
 				float res = top.getFloat( "resolution" );
+				threshold = top.getFloat( "threshold", threshold );
+				baseThreshold = .1f;
 				
 				ArrayList<Primitive> prims = new ArrayList<>();
 				
@@ -139,39 +189,47 @@ public class App extends PApplet
 				
 				fg = new FieldGenerator( b.min, b.max, res );
 				fg.setPrimitives( prims );
-				Field field = fg.generate();
+				field = fg.generate();
 				
-				MarchingCubesPolygonizer mcp = new MarchingCubesPolygonizer();
-				tris = mcp.polygonize( field, .1f );
-				
-				PShape tmpShape = createShape(); 
-				tmpShape.beginShape( TRIANGLES );
-				tmpShape.stroke( 100 );
-				//tmpShape.noStroke();
-				tmpShape.fill( 255 );
-				
-				for( Triangle tri : tris )
-				{
-					tmpShape.vertex( tri.a.x, tri.a.y, tri.a.z );
-					tmpShape.vertex( tri.b.x, tri.b.y, tri.b.z );
-					tmpShape.vertex( tri.c.x, tri.c.y, tri.c.z );
-				}
-				tmpShape.endShape();
-				
-				shape = tmpShape;
+				polygonize();
 				
 				// Set up camera at end
 				cam = new PeasyCam(App.this, 100);
-				float maxSize = max( b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z );
-				float near = maxSize / 100.f;
+				far = sqrt( pow(b.max.x - b.min.x, 2) + pow(b.max.y - b.min.y, 2) + pow(b.max.z - b.min.z, 2) ) * 2;
+				near = far * .001f;
 				cam.setMinimumDistance( near );
-				cam.setMaximumDistance( maxSize);
-				perspective(80, (float)width/(float)height, near, maxSize*2 );
+				cam.setMaximumDistance( far * .5f );
 			} catch( Exception e )
 			{
 				e.printStackTrace();
 				System.exit( 1 );
 			}
+		}
+		
+		public void polygonize()
+		{
+			shape = null;
+			
+			MarchingCubesPolygonizer mcp = new MarchingCubesPolygonizer();
+			tris = mcp.polygonize( field, threshold );
+			
+			PShape tmpShape = nextShape;
+			nextShape = null;
+			
+			tmpShape.beginShape( TRIANGLES );
+			tmpShape.stroke( 100 );
+			//tmpShape.noStroke();
+			tmpShape.fill( 255 );
+			
+			for( Triangle tri : tris )
+			{
+				tmpShape.vertex( tri.a.x, tri.a.y, tri.a.z );
+				tmpShape.vertex( tri.b.x, tri.b.y, tri.b.z );
+				tmpShape.vertex( tri.c.x, tri.c.y, tri.c.z );
+			}
+			tmpShape.endShape();
+			
+			shape = tmpShape;
 		}
 		
 		public float getProgress()

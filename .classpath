@@ -21,6 +21,7 @@
 	<classpathentry kind="lib" path="processing/library/jogl-all-natives-linux-i586.jar"/>
 	<classpathentry kind="lib" path="processing/library/jogl-all-natives-macosx-universal.jar"/>
 	<classpathentry kind="lib" path="processing/library/jogl-all-natives-windows-i586.jar"/>
+	<classpathentry kind="lib" path="lib/joml-1.9.12.jar" sourcepath="C:/Users/Daniel/.m2/repository/org/joml/joml/1.9.12/joml-1.9.12-sources.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/5"/>
 	<classpathentry kind="src" path="/ConvolutionSurfaces"/>
 	<classpathentry kind="output" path="bin"/>
