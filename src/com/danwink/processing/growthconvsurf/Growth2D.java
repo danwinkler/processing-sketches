@@ -169,7 +169,6 @@ public class Growth2D extends PApplet
 				Vector2f rv = getDirToPoints( rp );
 				rv.mul( segmentLength );
 				Segment root = new Segment( rp, rv );
-				System.out.println( rv.length() );
 				segments.add( root );
 			}
 			
@@ -354,7 +353,8 @@ public class Growth2D extends PApplet
 		
 		public boolean canSplit( Segment segment )
 		{
-			return inPointCanSplit( segment );
+			return ninetyDegreeCanSplit( segment );
+			//return inPointCanSplit( segment );
 		}
 		
 		public boolean inPointCanSplit( Segment segment )
