@@ -1,10 +1,13 @@
 package com.danwink.processing.strokegame;
 
 import processing.core.PApplet;
+import processing.core.PVector;
 
 public class StrokeDrawApp extends PApplet
 {
 	float characterScale = 100;
+	PVector pos = new PVector( 0, 0 );
+	PVector dim = new PVector( characterScale * BaseCharacter.DIMENSIONS, characterScale * BaseCharacter.DIMENSIONS );
 	
 	boolean drawingLine = false;
 	int xLineStart, yLineStart;
@@ -32,14 +35,14 @@ public class StrokeDrawApp extends PApplet
 			line( i * characterScale, 0, i * characterScale, BaseCharacter.DIMENSIONS * characterScale );
 			line( 0, i * characterScale, BaseCharacter.DIMENSIONS * characterScale, i * characterScale );
 		}
-		cr.render( g, c, characterScale );
+		cr.render( g, c, pos, dim, (keyPressed && key == 'd') );
 		
 		if( mousePressed )
 		{
 			line( (xLineStart+.5f) * characterScale, (yLineStart+.5f) * characterScale, mouseX, mouseY );
 		}
 		
-		if( key == 'r' )
+		if( keyPressed && key == 'r' )
 		{
 			setup();
 		}

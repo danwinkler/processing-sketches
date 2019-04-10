@@ -1,20 +1,24 @@
 package com.danwink.processing.strokegame;
 
-public class BaseCharacter
+import com.danwink.processing.Vector2I;
+
+public class BaseCharacter extends Character
 {
 	public static final int DIMENSIONS = 5;
 	
 	public static final int DEFAULT_STROKE_COUNT = 10;
 	
+	public String name;
 	public Stroke[] strokes;
 	
 	public BaseCharacter()
 	{
-		this( DEFAULT_STROKE_COUNT );
+		this( "", DEFAULT_STROKE_COUNT );
 	}
 	
-	public BaseCharacter( int strokeCount )
+	public BaseCharacter( String name, int strokeCount )
 	{
+		this.name = name;
 		strokes = new Stroke[strokeCount];
 	}
 	
@@ -33,14 +37,13 @@ public class BaseCharacter
 	
 	public static class Stroke
 	{
-		int x1, y1, x2, y2;
+		Vector2I start;
+		Vector2I end;
 		
 		public Stroke( int x1, int y1, int x2, int y2 )
 		{
-			this.x1 = x1;
-			this.y1 = y1;
-			this.x2 = x2;
-			this.y2 = y2;
+			start = new Vector2I( x1, y1 );
+			end = new Vector2I( x2, y2 );
 		}
 	}
 }
